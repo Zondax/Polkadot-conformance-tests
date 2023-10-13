@@ -63,4 +63,3 @@ if response.status_code == 200:
     print(f"{len(functions)} host-api function specifications saved to {SPECS_HOST_API_NAME}")
 else:
     print("Failed to retrieve the markdown file")
-

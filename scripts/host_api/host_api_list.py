@@ -26,7 +26,6 @@ NODE_HOST_API_FILE = "./scripts/host_api/node_host_api.json"
 # Report file
 REPORT_HOST_API_LIST = "host_api_report.json"
 
-
 def make_payload(method, args):
     message = utils.RpcMessage(method, args)
     return json.dumps(message.to_dict())
