@@ -11,15 +11,22 @@ class RpcMessage:
             "params": self.params,
             "id": 1
         }
-    
+
 async def send_messages(websocket, messages):
     responses = []  # Initialize an empty list to collect responses
+    
+    # lets support the case we sent only one message 
+    if not isinstance(messages, list):
+        messages = [messages]
+
     for message in messages:
         await websocket.send(message)
         print(f"> Sent: {message}")
 
         response = await websocket.recv()
         print(f"< Received: {response}")
-        responses.append(response)  # Append each response to the responses list
+        responses.append(response)
 
-    return responses  # Return the list of responses
+    # Return either a single response or a list of responses
+    return responses if len(responses) > 1 else responses[0]
+    
