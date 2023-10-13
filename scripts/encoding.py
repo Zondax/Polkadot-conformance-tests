@@ -2,6 +2,8 @@ import asyncio
 import websockets
 import json
 
+import utils
+
 # for a u32: 42 and according to the scale encoding docs,
 # the encoded data should be:
 EXPECTED_RESPONSE_U32 = '2a000000'
@@ -13,30 +15,8 @@ EXPECTED_RESPONSE_TUPLE = '0100185a6f6e646178'
 
 # for more info go: https://docs.substrate.io/reference/scale-codec/
 
-class RpcMessage:
-    def __init__(self, method, param_name, param_value):
-        self.method = method
-        self.param_name = param_name
-        self.param_value = param_value
-    
-    def set_param(self, param_name, param_value):
-        self.param_name = param_name
-        self.param_value = param_value
-    
-    def to_dict(self):
-        return {
-            "jsonrpc": "2.0",
-            "method": self.method,
-            "params": {
-                "test": {
-                    self.param_name: self.param_value
-                }
-            },
-            "id": 1
-        }
-
 def make_payload(variant_name, value):
-    message = RpcMessage("scale_encode", variant_name, value)
+    message = utils.RpcMessage("scale_encode", {"test" : {variant_name: value}})
     return json.dumps(message.to_dict())
 
 
@@ -60,25 +40,13 @@ def prepare_testing_data():
     ]
     return test_data
 
-async def send_messages(websocket, messages):
-    responses = []  # Initialize an empty list to collect responses
-    for message in messages:
-        await websocket.send(message)
-        print(f"> Sent: {message}")
-
-        response = await websocket.recv()
-        print(f"< Received: {response}")
-        responses.append(response)  # Append each response to the responses list
-
-    return responses  # Return the list of responses
-
 async def main():
     uri = "ws://127.0.0.1:9944"
     async with websockets.connect(uri) as websocket:
 
         test_data = prepare_testing_data()
         messages = [message for message, _ in test_data]
-        responses = await send_messages(websocket, messages)  # collect the responses
+        responses = await utils.send_messages(websocket, messages)  # collect the responses
 
         for (message, expected_response), response in zip(test_data, responses):
             # Parse the response
