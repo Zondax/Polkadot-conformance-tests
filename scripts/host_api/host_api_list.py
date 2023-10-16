@@ -81,6 +81,10 @@ def check_api_list(specs, node_list):
     # are defined by the official specification.
     assert report.get('common'), "Host-api implementation does not follow specs"
     
+    # Assert that impls have at least a non-empty set of methods that 
+    # are defined by the official specification.
+    assert report.get('common'), "Host-api implementation does not follow specs"
+    
     # Save report to a JSON file
     with open(REPORT_HOST_API_LIST, 'w') as file:
         json.dump(report, file, indent=4)
