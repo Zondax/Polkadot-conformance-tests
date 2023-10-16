@@ -20,6 +20,12 @@ URI = "ws://127.0.0.1:9944"
 # spec. We can go further and make a report regarding this
 SPECS_HOST_API_FILE = "./scripts/host_api/specs_host_api.json"
 
+# Save the node's list of host-api functions for reference.
+NODE_HOST_API_FILE = "./scripts/host_api/node_host_api.json"
+
+# Report file
+REPORT_HOST_API_LIST = "host_api_report.json"
+
 
 def make_payload(method, args):
     message = utils.RpcMessage(method, args)
@@ -29,32 +35,58 @@ def make_payload(method, args):
 def runtime_host_api_msg():
     return make_payload("zondax_host_api_functions", {})
 
+
+def load_specs_list():
+    specs_list = {}
+
+    with open(SPECS_HOST_API_FILE, 'r', encoding='utf-8') as file: 
+        specs_list = json.load(file)
+
+    return specs_list
+
+async def get_node_host_api_list(websocket):
+    message = runtime_host_api_msg()
+
+    response = await utils.send_messages(websocket, message)
+    response_data = json.loads(response)
+
+    result = response_data.get('result', '')  # Adjust this line based on the actual response format
+
+    return result
+
 # Test to verify that Polkadot-Node provides all the host-api functions defined 
 # in the specification, this will ignore any other host-api function node 
 # implementors decided to add as part of their design
 async def test_host_api_list(websocket):
-    message = runtime_host_api_msg()
-    response = await utils.send_messages(websocket, message)
-    response_data = json.loads(response)
-    result = response_data.get('result', '')  # Adjust this line based on the actual response format
-    check_api_list(result)
+    # First:
+    # - Get a report about the host-api functions.
+    # - Check the signature and ensure they are the same as in spects.
 
-def check_api_list(actual_list):
-    report = {}
+    specs_list = load_specs_list()
+    node_api_list = await get_node_host_api_list(websocket)
 
-    with open(SPECS_HOST_API_FILE, 'r', encoding='utf-8') as file:
-        base_list = json.load(file)
-        # Get report on differences between lists
-        report = utils.compare_lists(base_list, actual_list)
-        print(json.dumps(report, indent=4))
+    with open(NODE_HOST_API_FILE, 'w') as file:
+        json.dump(node_api_list, file, indent=4)
+
+    # First check that there are at least some functions defined in the specs and implemented 
+    # by the node.
+    check_api_list(specs_list, node_api_list)
+
+    # TODO: we have all we need for checking function 
+    # signatures.
+
+def check_api_list(specs, node_list):
+    report = utils.compare_lists([obj['name'] for obj in specs], [obj['name'] for obj in node_list])
     
     # Assert that impls have at least a non-empty set of methods that 
     # are defined by the official specification.
     assert report.get('common'), "Host-api implementation does not follow specs"
     
     # Save report to a JSON file
-    with open("host_api_report.json", "w") as file:
+    with open(REPORT_HOST_API_LIST, 'w') as file:
         json.dump(report, file, indent=4)
+
+    return report
 
 async def main():
     async with websockets.connect(URI) as websocket:
