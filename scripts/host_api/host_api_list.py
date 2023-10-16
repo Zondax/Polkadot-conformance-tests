@@ -48,6 +48,10 @@ def check_api_list(actual_list):
         report = utils.compare_lists(base_list, actual_list)
         print(json.dumps(report, indent=4))
     
+    # Assert that impls have at least a non-empty set of methods that 
+    # are defined by the official specification.
+    assert report.get('common'), "Host-api implementation does not follow specs"
+    
     # Save report to a JSON file
     with open("host_api_report.json", "w") as file:
         json.dump(report, file, indent=4)
