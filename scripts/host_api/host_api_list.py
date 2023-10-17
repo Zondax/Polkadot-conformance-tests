@@ -26,14 +26,15 @@ NODE_HOST_API_FILE = "./scripts/host_api/node_host_api.json"
 # Report file
 REPORT_HOST_API_LIST = "host_api_report.json"
 
+# Report abi incompatibilities
+REPORT_WRONG_HOST_API = "mistmatch_host_api_report.json"
+
 def make_payload(method, args):
     message = utils.RpcMessage(method, args)
     return json.dumps(message.to_dict())
 
-
 def runtime_host_api_msg():
     return make_payload("zondax_host_api_functions", {})
-
 
 def load_specs_list():
     specs_list = {}
@@ -59,7 +60,7 @@ async def get_node_host_api_list(websocket):
 async def test_host_api_list(websocket):
     # First:
     # - Get a report about the host-api functions.
-    # - Check the signature and ensure they are the same as in spects.
+    # - Check the signature and ensure they are the same as in specs.
 
     specs_list = load_specs_list()
     node_api_list = await get_node_host_api_list(websocket)
@@ -69,16 +70,9 @@ async def test_host_api_list(websocket):
 
     # First check that there are at least some functions defined in the specs and implemented 
     # by the node.
-    check_api_list(specs_list, node_api_list)
+    report = generate_report(specs_list, node_api_list)
 
-    # TODO: we have all we need for checking function 
-    # signatures.
-
-def check_api_list(specs, node_list):
-    report = utils.compare_lists([obj['name'] for obj in specs], [obj['name'] for obj in node_list])
-    
-    # Assert that impls have at least a non-empty set of methods that 
-    # are defined by the official specification.
+    # Assert that node-host-api implementation is not empty
     assert report.get('common'), "Host-api implementation does not follow specs"
     
     # Assert that impls have at least a non-empty set of methods that 
@@ -89,7 +83,48 @@ def check_api_list(specs, node_list):
     with open(REPORT_HOST_API_LIST, 'w') as file:
         json.dump(report, file, indent=4)
 
-    return report
+    # Now check that the functions that are described in the 
+    # specification are implemented in the node
+    mismatch_report = check_api(specs_list, node_api_list, report['common'])
+
+    # If there were any mismatches, save them to a report file.
+    if mismatch_report:
+        print("MISMATCH in lists of apis")
+        with open(REPORT_WRONG_HOST_API, 'w') as file:
+            json.dump(mismatch_report, file, indent=4)
+
+
+
+def generate_report(specs, node_list):
+    return utils.compare_lists([obj['name'] for obj in specs], [obj['name'] for obj in node_list])
+
+
+# Will check host-api function signature follows the specification
+# this will return a list with the functions that does not match.
+def check_api(specs, node_list, common):
+    # Lets filter out extra/missing host-api 
+    # functions, and compare only the common elements.
+    common_names = set(common)
+    specs_common = {item['name']: item for item in specs if item['name'] in common_names}
+    node_common = {item['name']: item for item in node_list if item['name'] in common_names}
+
+    mismatch = []
+
+    if not specs_common:
+        mismatch.append({"error": "specs_common is empty", "spec": [], "node": list(node_common.values())})
+    if not node_common:
+        mismatch.append({"error": "node_common is empty", "spec": list(specs_common.values()), "node": []})
+
+    if specs_common and node_common:
+        for name in common_names:
+            spec = specs_common.get(name)
+            node = node_common.get(name)
+
+            if spec and node:
+                if spec != node:
+                    mismatch.append({"spec": spec, "node": node})
+
+    return mismatch
 
 async def main():
     async with websockets.connect(URI) as websocket:
