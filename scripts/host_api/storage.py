@@ -11,6 +11,7 @@ import utils
 
 STORAGE_SET = "ZondaxTest_set_storage"
 STORAGE_GET = "ZondaxTest_get_storage"
+STORAGE_CLEAR = "ZondaxTest_clear_storage"
 
 RPC_METHOD = "zondax_host_api"
 URI = "ws://127.0.0.1:9944"
@@ -24,22 +25,13 @@ TEST_DATA = {
     "key1": "value_changed"
 }
 
-# method here is the wasm runtime method 
-# we are calling.
-def make_payload(method, args):
-    args = [method, args]
-    message = utils.RpcMessage(RPC_METHOD, args)
-    return json.dumps(message.to_dict())
-
-def host_api_msg(method,args):
-    return make_payload(method, args)
 
 async def check_storage_set_get(websocket, test_data):
     for key, value in test_data.items():
 
         args = utils.scale_encode([key.encode('utf8'), value.encode('utf8')], 'Vec<Bytes>')
 
-        msg = host_api_msg(STORAGE_SET, args)
+        msg = utils.host_api_msg(STORAGE_SET, args)
 
         response = await utils.send_messages(websocket, msg)
         response_data = json.loads(response)
@@ -49,7 +41,7 @@ async def check_storage_set_get(websocket, test_data):
 
         args = utils.scale_encode([key.encode('utf8')], 'Vec<Bytes>')
 
-        msg = host_api_msg(STORAGE_GET, args)
+        msg = utils.host_api_msg(STORAGE_GET, args)
 
         response = await utils.send_messages(websocket, msg)
         response_data = json.loads(response)
@@ -62,10 +54,39 @@ async def check_storage_set_get(websocket, test_data):
 
     return
 
+async def check_storage_clear(websocket, test_data):
+    for key, value in test_data.items():
+        args = utils.scale_encode([key.encode('utf8')], 'Vec<Bytes>')
+
+        msg = utils.host_api_msg(STORAGE_CLEAR, args)
+
+        response = await utils.send_messages(websocket, msg)
+        response_data = json.loads(response)
+
+        result = response_data.get('result', '')
+
+        assert result == [], "Expected result to be an empty list, but it was not."
+
+        # Now try to get the value after and assert it is empty
+        args = utils.scale_encode([key.encode('utf8')], 'Vec<Bytes>')
+
+        msg = utils.host_api_msg(STORAGE_GET, args)
+
+        response = await utils.send_messages(websocket, msg)
+        response_data = json.loads(response)
+
+        result = response_data.get('result', '')
+        result = utils.scale_decode(result, 'Option<Bytes>')
+
+        assert result == None, f"Unexpected storage value"
+
+
 
 async def main():
     async with websockets.connect(URI) as websocket:
         await check_storage_set_get(websocket, TEST_DATA)
+        print("\n Clearing storage \n")
+        await check_storage_clear(websocket, TEST_DATA)
 
 
 if __name__ == "__main__":
