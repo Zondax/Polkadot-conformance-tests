@@ -1,6 +1,9 @@
-# from scalecodec.type_registry import load_type_registry_file
+import json
+
 from scalecodec.types import Vec, ScaleBytes, String, ScaleType
 from scalecodec.base import RuntimeConfiguration
+
+RPC_METHOD = "zondax_host_api" 
 
 class RpcMessage:
     def __init__(self, method, params):
@@ -32,7 +35,12 @@ async def send_messages(websocket, messages):
 
     # Return either a single response or a list of responses
     return responses if len(responses) > 1 else responses[0]
-    
+
+
+def host_api_msg(method,args):
+    args = [method, args]
+    message = RpcMessage(RPC_METHOD, args)
+    return json.dumps(message.to_dict()) 
 
 # Returns a report indicating:
 # - list intersection.
@@ -56,7 +64,7 @@ def compare_lists(base_list, actual_list):
 
 # TODO: Add support for other types 
 # this work only for BYtes
-def scale_encode(data, data_type):
+def scale_encode(data, data_type="Bytes"):
     encoded_data = []
     for item in data:
         scale_obj = RuntimeConfiguration().create_scale_object('Bytes')
