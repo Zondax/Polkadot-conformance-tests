@@ -9,6 +9,8 @@ services:
       dockerfile: zondax-docker.Dockerfile
     ports:
       - "9944:9944"
+    volumes:
+      - "./build_artifacts:/polkadot-sdk/target/release/wbuild/polkadot-runtime"
     command: /bin/bash -c "\
       if [ -d 'polkadot-sdk' ]; then \
       echo 'Updating existing polkadot-sdk repository'; \
@@ -17,7 +19,13 @@ services:
       fi; \
       cd polkadot-sdk && \
       cargo build --features specs-tests && \
-      cd polkadot-sdk/polkadot/runtime/polkadot && \
-      cargo build --release && \
-      cd ../../../ && \
+      cargo build --release --package polkadot-runtime && \
       ./target/debug/polkadot --name zondax_test --rpc-cors all --rpc-methods Unsafe --rpc-port 9944 --dev"
+
+  polkadotui:
+    container_name: polkadotui
+    image: jacogr/polkadot-js-apps
+    environment:
+      - WS_URL=ws://127.0.0.1:9944
+    ports:
+      - 80:80
