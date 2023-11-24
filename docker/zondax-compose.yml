@@ -9,17 +9,26 @@ services:
       dockerfile: zondax-docker.Dockerfile
     ports:
       - "9944:9944"
+    network_mode: host
     volumes:
-      - "./build_artifacts:/polkadot-sdk/target/release/wbuild/polkadot-runtime"
+      - "./build_artifacts:/build_artifacts"
+
     command: /bin/bash -c "\
       if [ -d 'polkadot-sdk' ]; then \
       echo 'Updating existing polkadot-sdk repository'; \
       else \
       git clone -b zondax https://github.com/Zondax/polkadot-sdk; \
       fi; \
+
       cd polkadot-sdk && \
-      cargo build --features specs-tests && \
+      echo 'Compiling runtime' && \
       cargo build --release --package polkadot-runtime && \
+      echo 'Listing target../polkadot-runtime:' && \
+      ls target/release/wbuild/polkadot-runtime/ && \
+      echo 'Copying runtime binary' && \
+      cp target/release/wbuild/polkadot-runtime/*.wasm /build_artifacts/ && \
+      echo 'Compiling Rust Node:' && \
+      cargo build --features specs-tests && \
       ./target/debug/polkadot --name zondax_test --rpc-cors all --rpc-methods Unsafe --rpc-port 9944 --dev"
 
   polkadotui:
