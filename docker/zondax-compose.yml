@@ -1,0 +1,23 @@
+version: "3.8"
+
+services:
+  polkadot-sdk:
+    container_name: polkadot-sdk
+    build:
+      context: .
+      # dockerfile: Dockerfile
+      dockerfile: zondax-docker.Dockerfile
+    ports:
+      - "9944:9944"
+    command: /bin/bash -c "\
+      if [ -d 'polkadot-sdk' ]; then \
+      echo 'Updating existing polkadot-sdk repository'; \
+      else \
+      git clone -b zondax https://github.com/Zondax/polkadot-sdk; \
+      fi; \
+      cd polkadot-sdk && \
+      cargo build --features specs-tests && \
+      cd polkadot-sdk/polkadot/runtime/polkadot && \
+      cargo build --release && \
+      cd ../../../ && \
+      ./target/debug/polkadot --name zondax_test --rpc-cors all --rpc-methods Unsafe --rpc-port 9944 --dev"
