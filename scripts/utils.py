@@ -42,26 +42,6 @@ def host_api_msg(method,args):
     message = RpcMessage(RPC_METHOD, args)
     return json.dumps(message.to_dict()) 
 
-# Returns a report indicating:
-# - list intersection.
-# - what is in base_list that is not in actual_list 
-# - what is in actual_list that is not in base_list
-def compare_lists(base_list, actual_list):
-    base = set(base_list)
-    actual = set(actual_list)
-    missing = base - actual
-    extra = actual - base  # Functions implemented but not in specs
-    common = actual & base  # Functions both implemented and in specs
-
-    # Generate report
-    report = {
-        "missing": list(missing),
-        "extra": list(extra),
-        "common": list(common)
-    }
-
-    return report
-
 # TODO: Add support for other types 
 # this work only for BYtes
 def scale_encode(data, data_type="Bytes"):
